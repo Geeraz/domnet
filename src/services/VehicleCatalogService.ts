@@ -11,6 +11,7 @@ import type {
 type MakeRecord = Omit<VehicleMake, "modelCount">;
 type CatalogRecord = { name: string; abrv: string };
 
+// Mock backend keeps catalog data in memory until the real API is ready
 const makes: MakeRecord[] = [
 	{ id: 1, name: "Audi", abrv: "AUD" },
 	{ id: 2, name: "BMW", abrv: "BMW" },
@@ -63,6 +64,7 @@ function getCatalogPage<T extends CatalogRecord>(
 	items: T[],
 	query: VehicleListQuery,
 ): PaginatedResponse<T> {
+	// Search first, then sort, then return one page of results
 	const searchText = query.search.trim().toLocaleLowerCase();
 	const matchingItems = items.filter((item) => {
 		const searchableValues = [item.name, item.abrv];

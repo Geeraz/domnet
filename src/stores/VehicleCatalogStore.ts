@@ -12,6 +12,7 @@ import type {
 	VehicleSortField,
 } from "../types/vehicle";
 
+// Store handles catalog state, loading, and saving
 type CatalogListState<T, Q> = {
 	items: T[];
 	total: number;
@@ -158,6 +159,7 @@ export class VehicleCatalogStore {
 		state: CatalogListState<T, Q>,
 		request: (query: Q) => Promise<{ items: T[]; total: number }>,
 	) {
+		// Makes and models use the same loading and error handling
 		state.loading = true;
 		this.error = "";
 		try {

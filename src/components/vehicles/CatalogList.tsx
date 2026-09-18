@@ -12,6 +12,7 @@ type CatalogListProps = {
 	onDelete: (item: CatalogItem) => void;
 };
 
+// observer keeps the table updated when the store changes
 export const CatalogList = observer(function CatalogList({
 	page,
 	onEdit,
