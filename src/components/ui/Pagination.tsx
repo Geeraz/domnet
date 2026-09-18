@@ -14,35 +14,43 @@ export function Pagination({
 	const pageCount = Math.ceil(total / pageSize);
 	if (pageCount < 2) return null;
 
+	const pageNumbers = Array.from(
+		{ length: pageCount },
+		(_, index) => index + 1,
+	);
+	const isFirstPage = page === 1;
+	const isLastPage = page === pageCount;
+
 	return (
 		<nav className="pagination" aria-label="Pagination">
 			<button
 				className="page-arrow"
 				type="button"
 				aria-label="Previous page"
-				disabled={page === 1}
+				disabled={isFirstPage}
 				onClick={() => onPageChange(page - 1)}
 			>
 				‹
 			</button>
-			{Array.from({ length: pageCount }, (_, index) => index + 1).map(
-				(pageNumber) => (
+			{pageNumbers.map((pageNumber) => {
+				const isCurrentPage = pageNumber === page;
+				return (
 					<button
 						key={pageNumber}
 						type="button"
-						className={`pagination-page ${pageNumber === page ? "active" : ""}`}
-						aria-current={pageNumber === page ? "page" : undefined}
+						className={`pagination-page ${isCurrentPage ? "active" : ""}`}
+						aria-current={isCurrentPage ? "page" : undefined}
 						onClick={() => onPageChange(pageNumber)}
 					>
 						{pageNumber}
 					</button>
-				),
-			)}
+				);
+			})}
 			<button
 				className="page-arrow"
 				type="button"
 				aria-label="Next page"
-				disabled={page === pageCount}
+				disabled={isLastPage}
 				onClick={() => onPageChange(page + 1)}
 			>
 				›

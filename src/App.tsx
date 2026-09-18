@@ -8,7 +8,7 @@ function App() {
 	const [activePage, setActivePage] = useState<VehiclePage>("makes");
 
 	useEffect(() => {
-		void Promise.all([vehicleStore.refreshMakes(), vehicleStore.loadModels()]);
+		void vehicleStore.loadInitialData();
 	}, []);
 
 	return (

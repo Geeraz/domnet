@@ -15,10 +15,12 @@ export function Dialog({
 	footer,
 	size,
 }: DialogProps) {
+	const dialogClassName = size ? `dialog ${size}` : "dialog";
+
 	return (
 		<div className="dialog-backdrop">
 			<section
-				className={`dialog ${size ?? ""}`}
+				className={dialogClassName}
 				role="dialog"
 				aria-modal="true"
 				aria-label={title}

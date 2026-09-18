@@ -7,6 +7,7 @@ type AppShellProps = {
 	children: ReactNode;
 };
 
+// App navigation pages
 const pages: Array<{ page: VehiclePage; label: string }> = [
 	{ page: "makes", label: "Vehicle makes" },
 	{ page: "models", label: "Vehicle models" },

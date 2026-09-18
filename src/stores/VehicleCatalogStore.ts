@@ -12,33 +12,40 @@ import type {
 	VehicleSortField,
 } from "../types/vehicle";
 
-type ListState<T, Q> = {
+type CatalogListState<T, Q> = {
 	items: T[];
 	total: number;
 	query: Q;
 	loading: boolean;
 };
 
-const makeQuery: VehicleListQuery = {
+const defaultMakeQuery: VehicleListQuery = {
 	page: 1,
 	pageSize: 6,
 	search: "",
 	sortBy: "name",
 	sortDirection: "asc",
 };
-const modelQuery: VehicleModelListQuery = { ...makeQuery, makeId: "all" };
+const defaultModelQuery: VehicleModelListQuery = {
+	...defaultMakeQuery,
+	makeId: "all",
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+	return error instanceof Error ? error.message : fallback;
+}
 
 export class VehicleCatalogStore {
-	makes: ListState<VehicleMake, VehicleListQuery> = {
+	makes: CatalogListState<VehicleMake, VehicleListQuery> = {
 		items: [],
 		total: 0,
-		query: { ...makeQuery },
+		query: { ...defaultMakeQuery },
 		loading: true,
 	};
-	models: ListState<VehicleModel, VehicleModelListQuery> = {
+	models: CatalogListState<VehicleModel, VehicleModelListQuery> = {
 		items: [],
 		total: 0,
-		query: { ...modelQuery },
+		query: { ...defaultModelQuery },
 		loading: true,
 	};
 	makeOptions: VehicleMake[] = [];
@@ -49,45 +56,49 @@ export class VehicleCatalogStore {
 		makeAutoObservable(this);
 	}
 
+	async loadInitialData() {
+		await Promise.all([this.refreshMakes(), this.loadModels()]);
+	}
+
 	async loadMakes() {
-		await this.loadList(this.makes, (query) =>
+		await this.loadCatalogList(this.makes, (query) =>
 			vehicleCatalogService.listMakes(query),
 		);
 	}
 
 	async loadModels() {
-		await this.loadList(this.models, (query) =>
+		await this.loadCatalogList(this.models, (query) =>
 			vehicleCatalogService.listModels(query),
 		);
 	}
 
-	loadPage(section: VehiclePage) {
-		return section === "makes" ? this.loadMakes() : this.loadModels();
+	loadPage(page: VehiclePage) {
+		return page === "makes" ? this.loadMakes() : this.loadModels();
 	}
 
-	setSearch(section: VehiclePage, search: string) {
-		const state = this.getList(section);
+	setSearch(page: VehiclePage, search: string) {
+		const state = this.getListState(page);
 		state.query = { ...state.query, search, page: 1 };
-		void this.loadPage(section);
+		void this.loadPage(page);
 	}
 
-	setSort(section: VehiclePage, sortBy: VehicleSortField) {
-		const state = this.getList(section);
+	setSort(page: VehiclePage, sortBy: VehicleSortField) {
+		const state = this.getListState(page);
 		const sortDirection: SortDirection =
 			state.query.sortBy === sortBy && state.query.sortDirection === "asc"
 				? "desc"
 				: "asc";
 		state.query = { ...state.query, sortBy, sortDirection, page: 1 };
-		void this.loadPage(section);
+		void this.loadPage(page);
 	}
 
-	setPage(section: VehiclePage, value: number) {
-		const state = this.getList(section);
+	setPage(page: VehiclePage, value: number) {
+		const state = this.getListState(page);
 		state.query.page = value;
-		void this.loadPage(section);
+		void this.loadPage(page);
 	}
 
-	setModelMake(makeId: number | "all") {
+	setModelMakeFilter(makeId: number | "all") {
 		this.models.query = { ...this.models.query, makeId, page: 1 };
 		void this.loadModels();
 	}
@@ -97,28 +108,28 @@ export class VehicleCatalogStore {
 	}
 
 	async saveMake(input: VehicleMakeInput, id?: number) {
-		await this.save(
+		await this.saveAndRefresh(
 			() => vehicleCatalogService.saveMake(input, id),
 			() => this.refreshMakes(),
 		);
 	}
 
 	async removeMake(id: number) {
-		await this.save(
+		await this.saveAndRefresh(
 			() => vehicleCatalogService.deleteMake(id),
 			() => this.refreshMakes(),
 		);
 	}
 
 	async saveModel(input: VehicleModelInput, id?: number) {
-		await this.save(
+		await this.saveAndRefresh(
 			() => vehicleCatalogService.saveModel(input, id),
 			() => this.refreshModels(),
 		);
 	}
 
 	async removeModel(id: number) {
-		await this.save(
+		await this.saveAndRefresh(
 			() => vehicleCatalogService.deleteModel(id),
 			() => this.refreshModels(),
 		);
@@ -132,8 +143,8 @@ export class VehicleCatalogStore {
 		await Promise.all([this.loadModels(), this.loadMakeOptions()]);
 	}
 
-	private getList(section: VehiclePage) {
-		return section === "makes" ? this.makes : this.models;
+	private getListState(page: VehiclePage) {
+		return page === "makes" ? this.makes : this.models;
 	}
 
 	private async loadMakeOptions() {
@@ -143,8 +154,8 @@ export class VehicleCatalogStore {
 		});
 	}
 
-	private async loadList<T, Q extends VehicleListQuery>(
-		state: ListState<T, Q>,
+	private async loadCatalogList<T, Q extends VehicleListQuery>(
+		state: CatalogListState<T, Q>,
 		request: (query: Q) => Promise<{ items: T[]; total: number }>,
 	) {
 		state.loading = true;
@@ -158,30 +169,30 @@ export class VehicleCatalogStore {
 			});
 		} catch (error) {
 			runInAction(() => {
-				this.error =
-					error instanceof Error
-						? error.message
-						: "Could not load catalog data.";
+				this.error = getErrorMessage(
+					error,
+					"Could not load catalog data.",
+				);
 				state.loading = false;
 			});
 		}
 	}
 
-	private async save(
-		action: () => Promise<void>,
-		refresh: () => Promise<void>,
+	private async saveAndRefresh(
+		saveItem: () => Promise<void>,
+		refreshData: () => Promise<void>,
 	) {
 		this.saving = true;
 		this.error = "";
 		try {
-			await action();
-			await refresh();
+			await saveItem();
+			await refreshData();
 		} catch (error) {
 			runInAction(() => {
-				this.error =
-					error instanceof Error
-						? error.message
-						: "Could not save catalog data.";
+				this.error = getErrorMessage(
+					error,
+					"Could not save catalog data.",
+				);
 			});
 			throw error;
 		} finally {

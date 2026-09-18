@@ -1,10 +1,12 @@
 import { observer } from "mobx-react";
-import type { SyntheticEvent } from "react";
+import type { FormEvent } from "react";
 import { vehicleStore } from "../../stores/VehicleCatalogStore";
 import type { CatalogItem, VehiclePage } from "../../types/vehicle";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
+import { vehiclePageLabels } from "./vehiclePageLabels";
 
+// observer keeps store updates visible while the dialog is open
 export const CatalogForm = observer(function CatalogForm({
 	page,
 	item,
@@ -15,33 +17,38 @@ export const CatalogForm = observer(function CatalogForm({
 	onClose: () => void;
 }) {
 	const isModel = page === "models";
-	const entity = isModel ? "Model" : "Make";
-	const noun = entity.toLowerCase();
+	const labels = vehiclePageLabels[page];
 	const makeId = item && "makeId" in item ? item.makeId : undefined;
-	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
+
+	const submit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		const data = Object.fromEntries(new FormData(event.currentTarget));
+		const formData = new FormData(event.currentTarget);
 		const input = {
-			name: String(data.name ?? "").trim(),
-			abrv: String(data.abrv ?? "").trim().toUpperCase(),
+			name: String(formData.get("name") ?? "").trim(),
+			abrv: String(formData.get("abrv") ?? "")
+				.trim()
+				.toUpperCase(),
 		};
 
 		try {
-			const save = isModel
-				? vehicleStore.saveModel(
-					{ ...input, makeId: Number(data.makeId) },
+			if (isModel) {
+				await vehicleStore.saveModel(
+					{ ...input, makeId: Number(formData.get("makeId")) },
 					item?.id,
-				)
-				: vehicleStore.saveMake(input, item?.id);
-			await save;
+				);
+			} else {
+				await vehicleStore.saveMake(input, item?.id);
+			}
 			onClose();
-		} catch {}
+		} catch {
+			// The store keeps the error so the form can show it below.
+		}
 	};
 
 	return (
 		<Dialog
 			onClose={onClose}
-			title={`${item ? "Edit" : "Add"} vehicle ${noun}`}
+			title={`${item ? "Edit" : "Add"} vehicle ${labels.singular}`}
 			footer={
 				<>
 					<Button variant="secondary" onClick={onClose}>
@@ -84,13 +91,13 @@ export const CatalogForm = observer(function CatalogForm({
 					) : null}
 					<div>
 						<label className="label" htmlFor="name">
-							{entity} name
+							{labels.label} name
 						</label>
 						<input
 							className="input"
 							id="name"
 							name="name"
-							placeholder={isModel ? "e.g. Golf" : "e.g. Volkswagen"}
+							placeholder={labels.namePlaceholder}
 							defaultValue={item?.name}
 							autoFocus
 							required
@@ -104,7 +111,7 @@ export const CatalogForm = observer(function CatalogForm({
 							className="input"
 							id="abrv"
 							name="abrv"
-							placeholder={isModel ? "e.g. GOL" : "e.g. VW"}
+							placeholder={labels.abbreviationPlaceholder}
 							defaultValue={item?.abrv}
 							maxLength={6}
 							required

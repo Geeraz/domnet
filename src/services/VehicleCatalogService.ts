@@ -47,55 +47,56 @@ const models: VehicleModel[] = [
 	{ id: 803, makeId: 8, name: "Tiguan", abrv: "TIG" },
 ];
 
-const wait = () =>
+const simulateNetworkDelay = () =>
 	new Promise<void>((resolve) => window.setTimeout(resolve, 500));
 
-const nextId = (items: Array<{ id: number }>) =>
+const getNextId = (items: Array<{ id: number }>) =>
 	Math.max(0, ...items.map((item) => item.id)) + 1;
 
-const makeList = (): VehicleMake[] =>
+const getMakesWithModelCount = (): VehicleMake[] =>
 	makes.map((make) => ({
 		...make,
 		modelCount: models.filter((model) => model.makeId === make.id).length,
 	}));
 
-function page<T extends CatalogRecord>(
+function getCatalogPage<T extends CatalogRecord>(
 	items: T[],
 	query: VehicleListQuery,
 ): PaginatedResponse<T> {
-	const search = query.search.trim().toLocaleLowerCase();
-	const filtered = items
-		.filter((item) =>
-			[item.name, item.abrv].some((value) =>
-				value.toLocaleLowerCase().includes(search),
-			),
-		)
-		.sort((left, right) => {
-			const result = left[query.sortBy].localeCompare(
-				right[query.sortBy],
-				undefined,
-				{
-					sensitivity: "base",
-				},
-			);
-			return query.sortDirection === "asc" ? result : -result;
+	const searchText = query.search.trim().toLocaleLowerCase();
+	const matchingItems = items.filter((item) => {
+		const searchableValues = [item.name, item.abrv];
+		return searchableValues.some((value) =>
+			value.toLocaleLowerCase().includes(searchText),
+		);
+	});
+
+	matchingItems.sort((left, right) => {
+		const leftValue = left[query.sortBy];
+		const rightValue = right[query.sortBy];
+		const comparison = leftValue.localeCompare(rightValue, undefined, {
+			sensitivity: "base",
 		});
-	const start = (query.page - 1) * query.pageSize;
+		return query.sortDirection === "asc" ? comparison : -comparison;
+	});
+
+	const firstItem = (query.page - 1) * query.pageSize;
+	const lastItem = firstItem + query.pageSize;
 	return {
-		items: filtered.slice(start, start + query.pageSize),
-		total: filtered.length,
+		items: matchingItems.slice(firstItem, lastItem),
+		total: matchingItems.length,
 	};
 }
 
 export class VehicleCatalogService {
 	async listMakes(query: VehicleListQuery) {
-		await wait();
-		return page(makeList(), query);
+		await simulateNetworkDelay();
+		return getCatalogPage(getMakesWithModelCount(), query);
 	}
 
 	async listModels(query: VehicleModelListQuery) {
-		await wait();
-		return page(
+		await simulateNetworkDelay();
+		return getCatalogPage(
 			models.filter(
 				(model) => query.makeId === "all" || model.makeId === query.makeId,
 			),
@@ -104,16 +105,16 @@ export class VehicleCatalogService {
 	}
 
 	async listMakeOptions() {
-		await wait();
-		return makeList().sort((left, right) =>
+		await simulateNetworkDelay();
+		return getMakesWithModelCount().sort((left, right) =>
 			left.name.localeCompare(right.name),
 		);
 	}
 
 	async saveMake(input: VehicleMakeInput, id?: number) {
-		await wait();
+		await simulateNetworkDelay();
 		if (id === undefined) {
-			makes.push({ ...input, id: nextId(makes) });
+			makes.push({ ...input, id: getNextId(makes) });
 			return;
 		}
 		const make = makes.find((item) => item.id === id);
@@ -122,22 +123,22 @@ export class VehicleCatalogService {
 	}
 
 	async deleteMake(id: number) {
-		await wait();
+		await simulateNetworkDelay();
 		if (models.some((model) => model.makeId === id)) {
 			throw new Error(
 				"Remove the vehicle models for this make before deleting it.",
 			);
 		}
-		this.remove(makes, id, "Vehicle make");
+		this.removeItem(makes, id, "Vehicle make");
 	}
 
 	async saveModel(input: VehicleModelInput, id?: number) {
-		await wait();
+		await simulateNetworkDelay();
 		if (!makes.some((make) => make.id === input.makeId)) {
 			throw new Error("Select a valid vehicle make.");
 		}
 		if (id === undefined) {
-			models.push({ ...input, id: nextId(models) });
+			models.push({ ...input, id: getNextId(models) });
 			return;
 		}
 		const model = models.find((item) => item.id === id);
@@ -146,11 +147,11 @@ export class VehicleCatalogService {
 	}
 
 	async deleteModel(id: number) {
-		await wait();
-		this.remove(models, id, "Vehicle model");
+		await simulateNetworkDelay();
+		this.removeItem(models, id, "Vehicle model");
 	}
 
-	private remove<T extends { id: number }>(
+	private removeItem<T extends { id: number }>(
 		items: T[],
 		id: number,
 		label: string,

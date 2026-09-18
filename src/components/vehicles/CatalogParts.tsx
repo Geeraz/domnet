@@ -4,19 +4,20 @@ import type {
 	VehicleSortField,
 } from "../../types/vehicle";
 
+type SortHeaderProps = {
+	label: string;
+	field: VehicleSortField;
+	query: VehicleListQuery;
+	onSort: (field: VehicleSortField) => void;
+};
+
 export function SortHeader({
 	label,
 	field,
 	query,
 	onSort,
-}: {
-	label: string;
-	field: VehicleSortField;
-	query: VehicleListQuery;
-	onSort: (field: VehicleSortField) => void;
-}) {
-	const direction =
-		query.sortBy === field ? (query.sortDirection === "asc" ? "↑" : "↓") : "↕";
+}: SortHeaderProps) {
+	const direction = getSortIcon(query, field);
 	return (
 		<th>
 			<button className="sort" type="button" onClick={() => onSort(field)}>
@@ -26,18 +27,27 @@ export function SortHeader({
 	);
 }
 
+function getSortIcon(query: VehicleListQuery, field: VehicleSortField) {
+	if (query.sortBy !== field) return "↕";
+	return query.sortDirection === "asc" ? "↑" : "↓";
+}
+
+type CatalogRowProps = {
+	item: CatalogItem;
+	makeName?: string;
+	onEdit: (item: CatalogItem) => void;
+	onDelete: (item: CatalogItem) => void;
+};
+
 export function CatalogRow({
 	item,
 	makeName,
 	onEdit,
 	onDelete,
-}: {
-	item: CatalogItem;
-	makeName?: string;
-	onEdit: (item: CatalogItem) => void;
-	onDelete: (item: CatalogItem) => void;
-}) {
-	const isMake = "modelCount" in item;
+}: CatalogRowProps) {
+	const relatedValue = "modelCount" in item
+		? item.modelCount
+		: (makeName ?? "Unknown");
 
 	return (
 		<tr>
@@ -47,7 +57,7 @@ export function CatalogRow({
 			<td>
 				<span className="mono">{item.abrv}</span>
 			</td>
-			<td>{isMake ? item.modelCount : (makeName ?? "Unknown")}</td>
+			<td>{relatedValue}</td>
 			<td>
 				<span className="mono">#{String(item.id).padStart(4, "0")}</span>
 			</td>
@@ -58,15 +68,17 @@ export function CatalogRow({
 	);
 }
 
+type RowActionsProps = {
+	item: CatalogItem;
+	onEdit: (item: CatalogItem) => void;
+	onDelete: (item: CatalogItem) => void;
+};
+
 function RowActions({
 	item,
 	onEdit,
 	onDelete,
-}: {
-	item: CatalogItem;
-	onEdit: (item: CatalogItem) => void;
-	onDelete: (item: CatalogItem) => void;
-}) {
+}: RowActionsProps) {
 	return (
 		<div className="actions">
 			<button
